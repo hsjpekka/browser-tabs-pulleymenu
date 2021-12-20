@@ -1,0 +1,152 @@
+--- /usr/share/sailfish-browser/pages/components/TabView.qml
++++ /usr/share/sailfish-browser/pages/components/TabView.qml
+@@ -37,12 +37,87 @@
+ 
+     anchors.fill: parent
+ 
++    SilicaFlickable { // ===> patch
++        anchors.fill: parent
++
++        PullDownMenu {
++            id: pullDownMenu
++            visible: pulleyLocations.value >= 2 ||
++                     pulleyLocations.value <= -2 // <=== patch
++
++
++            signal closeAllTabs
++            signal closeCurrentTab
++
++            MenuItem {
++                text: "close all tabs"
++                enabled: !_closingAllTabs
++                onClicked: {
++                    pullDownMenu.closeAllTabs()
++                }
++            }
++            MenuItem {
++                text: "new private tab"
++                enabled: !_closingAllTabs
++                onClicked: {
++                    tabs.currentIndex = privateMode ? 1 : 0
++                    tabView.privateMode = true
++                    tabView.enterNewTabUrl()
++                }
++            }
++            MenuItem {
++                text: "new tab"
++                enabled: !_closingAllTabs
++                onClicked: {
++                    tabs.currentIndex = privateMode ? 1 : 0
++                    tabView.privateMode = false
++                    tabView.enterNewTabUrl()
++                }
++            }
++        }
++
++        PushUpMenu {
++            id: pushUpMenu
++            visible: pulleyLocations.value !== 2 &&
++                     pulleyLocations.value !== -2 // <=== patch
++
++            signal closeAllTabs
++            signal closeCurrentTab
++
++            MenuItem {
++                text: "new tab"
++                enabled: !_closingAllTabs
++                onClicked: {
++                    tabs.currentIndex = privateMode ? 1 : 0
++                    tabView.privateMode = false
++                    tabView.enterNewTabUrl()
++                }
++            }
++            MenuItem {
++                text: "new private tab"
++                enabled: !_closingAllTabs
++                onClicked: {
++                    tabs.currentIndex = privateMode ? 1 : 0
++                    tabView.privateMode = true
++                    tabView.enterNewTabUrl()
++                }
++            }
++            MenuItem {
++                text: "close all tabs"
++                enabled: !_closingAllTabs
++                onClicked: {
++                    pullDownMenu.closeAllTabs()
++                }
++            }
++        }
++        // <=== patch
++
+     Private.TabView {
+         id: tabs
+ 
+         anchors {
+             fill: parent
+-            bottomMargin: tabsToolBar.height
++            //bottomMargin: tabsToolBar.height // <=== patch
+         }
+ 
+         header: Private.TabBar {
+@@ -104,6 +179,31 @@
+                 }
+             }
+ 
++                // <=== patch
++                Connections {
++                    target: pullDownMenu
++                    onCloseAllTabs: {
++                        if (isCurrentItem)
++                            _tabView.closeAllTabs()
++                    }
++                    onCloseCurrentTab: {
++                        if (isCurrentItem)
++                            _tabView.closeTab(_tabView.currentIndex)
++                    }
++                }
++
++                Connections {
++                    target: pushUpMenu
++                    onCloseAllTabs: {
++                        if (isCurrentItem)
++                            _tabView.closeAllTabs()
++                    }
++                    onCloseCurrentTab: {
++                        if (isCurrentItem)
++                            _tabView.closeTab(_tabView.currentIndex)
++                    }
++                } // <=== patch
++
+             PrivateModeTexture {
+                 visible: privateMode
+                 z: -1
+@@ -207,6 +307,7 @@
+         onBack: pageStack.pop()
+         onEnterNewTabUrl: tabView.enterNewTabUrl()
+         onOpenMenu: popupMenu.active = true
++        visible: pulleyLocations.value < 0 // <=== patch
+     }
+ 
+     PopUpMenu {
+@@ -284,11 +385,18 @@
+             }
+         }
+         onClosed: active = false
+-    }
++    }
++    }
+ 
+     ConfigurationValue {
+         id: showCloseAllAction
+         key: "/apps/sailfish-browser/settings/show_close_all"
+         defaultValue: true
+-    }
++    }
++
++    ConfigurationValue {
++        id: pulleyLocations
++        key: "/apps/patchmanager/browser-tabs-pulley-menu/locations"
++        defaultValue: 1 // 1 - bottom, 2 - top, 3 - top & bottom, negative values don't hide the tool bar
++    }
+ }
